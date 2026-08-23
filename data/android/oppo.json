@@ -1,25 +1,31 @@
+
+
 {
-  "brand": "Oppo",
   "deviceType": "Android",
-  "models": [
+  "brand": "Oppo",
+  "boxes": [
     {
-      "series": "A-series",
-      "model": "A5",
-      "displayCode": "2201",
-      "stock": [
-        { "place": "Home", "qty": 2 },
-        { "place": "Shop A", "qty": 0 },
-        { "place": "Shop B", "qty": 1 }
-      ]
-    },
-    {
-      "series": "A-series",
-      "model": "A9",
-      "displayCode": "2005",
-      "stock": [
-        { "place": "Home", "qty": 0 },
-        { "place": "Shop A", "qty": 3 },
-        { "place": "Shop B", "qty": 3 }
+      "box": "Box Name 1",
+      "models": [
+        {
+          "series": "A-series",
+          "model": "A5",
+          "displayCode": "2201",
+          "stock": [
+            { "place": "Home", "qty": 0 },
+            { "place": "Shop A", "qty": 0 },
+            { "place": "Shop B", "qty": 0 }
+          ]
+           {
+          "series": "A-series",
+          "model": "A9",
+          "displayCode": "2005",
+          "stock": [
+            { "place": "Home", "qty": 1 },
+            { "place": "Shop A", "qty": 3 },
+            { "place": "Shop B", "qty": 1 }
+          ]
+        }
       ]
     }
   ]
