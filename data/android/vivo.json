@@ -1,35 +1,20 @@
 {
-  "brand": "Vivo",
   "deviceType": "Android",
-  "models": [
+  "brand": "Vivo",
+  "boxes": [
     {
-      "series": "Y-series",
-      "model": "Y18",
-      "displayCode": "1802",
-      "stock": [
-        { "place": "Home", "qty": 3 },
-        { "place": "Shop A", "qty": 5 },
-        { "place": "Shop B", "qty": 0 }
-      ]
-    },
-    {
-      "series": "V-series",
-      "model": "V30",
-      "displayCode": "12208",
-      "stock": [
-        { "place": "Home", "qty": 1 },
-        { "place": "Shop A", "qty": 2 },
-        { "place": "Shop B", "qty": 0 }
-      ]
-    },
-    {
-      "series": "T-series",
-      "model": "T3x",
-      "displayCode": "1815",
-      "stock": [
-        { "place": "Home", "qty": 0 },
-        { "place": "Shop A", "qty": 0 },
-        { "place": "Shop B", "qty": 4 }
+      "box": "Vivo 1",
+      "models": [
+        {
+          "series": "Y-series",
+          "model": "Y18",
+          "displayCode": "1802",
+          "stock": [
+            { "place": "Home", "qty": 3 },
+            { "place": "Shop A", "qty": 5 },
+            { "place": "Shop B", "qty": 0 }
+          ]
+        }
       ]
     }
   ]
