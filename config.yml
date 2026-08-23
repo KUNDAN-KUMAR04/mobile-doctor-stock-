@@ -1,0 +1,75 @@
+backend:
+  name: git-gateway
+  branch: main
+
+# If you deploy on Netlify, git-gateway + Netlify Identity (set up below)
+# is the easiest way to log in. See README.md for the alternative GitHub
+# OAuth setup if you're hosting on Vercel or GitHub Pages instead.
+
+media_folder: "" # no images used in this project
+publish_mode: simple
+
+collections:
+  - name: "places"
+    label: "Places"
+    files:
+      - name: "places"
+        label: "Places List"
+        file: "data/places.json"
+        fields:
+          - { label: "Places", name: "places", widget: "list", summary: "{{fields.value}}" }
+
+  - name: "android"
+    label: "Android Brands"
+    folder: "data/android"
+    create: true
+    slug: "{{slug}}"
+    identifier_field: "brand"
+    fields:
+      - { label: "Brand", name: "brand", widget: "string" }
+      - { label: "Device Type", name: "deviceType", widget: "string", default: "Android" }
+      - label: "Models"
+        name: "models"
+        widget: "list"
+        summary: "{{fields.model}} ({{fields.displayCode}})"
+        fields:
+          - { label: "Series", name: "series", widget: "string", required: false }
+          - { label: "Model", name: "model", widget: "string" }
+          - { label: "Display Code", name: "displayCode", widget: "string", required: false }
+          - label: "Stock by Place"
+            name: "stock"
+            widget: "list"
+            summary: "{{fields.place}}: {{fields.qty}}"
+            fields:
+              - { label: "Place", name: "place", widget: "string" }
+              - { label: "Quantity", name: "qty", widget: "number", value_type: "int", default: 0 }
+
+  - name: "ios"
+    label: "iOS Brands"
+    folder: "data/ios"
+    create: true
+    slug: "{{slug}}"
+    identifier_field: "brand"
+    fields:
+      - { label: "Brand", name: "brand", widget: "string" }
+      - { label: "Device Type", name: "deviceType", widget: "string", default: "iOS" }
+      - label: "Models"
+        name: "models"
+        widget: "list"
+        summary: "{{fields.model}} ({{fields.displayCode}})"
+        fields:
+          - { label: "Series", name: "series", widget: "string", required: false }
+          - { label: "Model", name: "model", widget: "string" }
+          - { label: "Display Code", name: "displayCode", widget: "string", required: false }
+          - label: "Stock by Place"
+            name: "stock"
+            widget: "list"
+            summary: "{{fields.place}}: {{fields.qty}}"
+            fields:
+              - { label: "Place", name: "place", widget: "string" }
+              - { label: "Quantity", name: "qty", widget: "number", value_type: "int", default: 0 }
+
+# To add a new device type later (e.g. "other" for tablets, feature phones):
+# 1. Create a folder at data/other/
+# 2. Copy one of the collection blocks above, rename it "other", point
+#    "folder" at data/other, and change the deviceType default.

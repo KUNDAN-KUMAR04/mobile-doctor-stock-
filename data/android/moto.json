@@ -1,0 +1,16 @@
+{
+  "brand": "Moto",
+  "deviceType": "Android",
+  "models": [
+    {
+      "series": "G-series",
+      "model": "G54",
+      "displayCode": "3105",
+      "stock": [
+        { "place": "Home", "qty": 1 },
+        { "place": "Shop A", "qty": 1 },
+        { "place": "Shop B", "qty": 0 }
+      ]
+    }
+  ]
+}

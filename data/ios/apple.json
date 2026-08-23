@@ -1,0 +1,16 @@
+{
+  "brand": "Apple",
+  "deviceType": "iOS",
+  "models": [
+    {
+      "series": "iPhone",
+      "model": "iPhone 13",
+      "displayCode": "A2633",
+      "stock": [
+        { "place": "Home", "qty": 0 },
+        { "place": "Shop A", "qty": 1 },
+        { "place": "Shop B", "qty": 0 }
+      ]
+    }
+  ]
+}
