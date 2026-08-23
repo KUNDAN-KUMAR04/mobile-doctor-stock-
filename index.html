@@ -12,18 +12,23 @@
     <div class="brand-row">
       <span class="brand-mark">Mobile<span>Doctor</span></span>
       <span class="brand-sub">Stock Search</span>
+      <a class="admin-link" href="admin/index.html">Admin</a>
     </div>
     <div class="search-row">
       <input id="search-input" class="search-input" type="text" placeholder="Search model or model number (e.g. 1802)" />
       <select id="device-type-select" class="filter-select"></select>
       <select id="brand-select" class="filter-select"></select>
     </div>
+    <div class="source-toggle-row">
+      <span class="field-label" style="margin:0;">Data source:</span>
+      <button type="button" id="source-db-btn" class="source-toggle-btn active">Database</button>
+      <button type="button" id="source-file-btn" class="source-toggle-btn">Normal (File)</button>
+    </div>
   </header>
 
   <main>
     <div id="status-line" class="status-line">Loading…</div>
     <div id="results" class="results-grid"></div>
-    <a class="admin-link" href="admin/index.html">Admin</a>
   </main>
 
   <script type="module" src="app.js"></script>

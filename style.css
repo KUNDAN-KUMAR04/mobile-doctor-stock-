@@ -270,15 +270,41 @@ main {
 }
 
 .admin-link {
-  display: inline-block;
-  margin-top: 10px;
   font-size: 11px;
   color: var(--text-muted);
   text-decoration: none;
-  border-bottom: 1px dotted var(--border);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin-left: auto;
 }
 
 .admin-link:hover { color: var(--accent); border-color: var(--accent); }
+
+.source-toggle-row {
+  max-width: 880px;
+  margin: 10px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.source-toggle-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: "JetBrains Mono", monospace;
+  cursor: pointer;
+}
+
+.source-toggle-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
 
 @media (max-width: 480px) {
   .ticket-model { font-size: 15px; }

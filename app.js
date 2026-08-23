@@ -12,9 +12,13 @@ const els = {
   search: document.getElementById("search-input"),       // model / model number text search
   deviceType: document.getElementById("device-type-select"),
   brand: document.getElementById("brand-select"),
+  sourceDbBtn: document.getElementById("source-db-btn"),
+  sourceFileBtn: document.getElementById("source-file-btn"),
 };
 
-let allModels = []; // flattened: one entry per model, carrying its box name for display
+let mode = "database"; // "database" | "file" — which source currently feeds the page
+let dbModels = [];      // last known Firestore data, tagged "database"
+let allModels = [];      // whichever of dbModels/FALLBACK_MODELS is active, per `mode`
 
 // Used only if Firestore can't be reached. Kept here just so the page never shows
 // a blank error screen — every card sourced from here is tagged "File" (see renderTicket).
@@ -142,6 +146,23 @@ function renderTicket(m) {
   </div>`;
 }
 
+function applyMode() {
+  allModels = mode === "database" ? dbModels : FALLBACK_MODELS.map((m) => ({ ...m, source: "file" }));
+  populateFilterOptions();
+  populateBrandOptions();
+  render();
+}
+
+function setMode(newMode) {
+  mode = newMode;
+  els.sourceDbBtn.classList.toggle("active", mode === "database");
+  els.sourceFileBtn.classList.toggle("active", mode === "file");
+  applyMode();
+}
+
+els.sourceDbBtn.addEventListener("click", () => setMode("database"));
+els.sourceFileBtn.addEventListener("click", () => setMode("file"));
+
 function init() {
   els.status.textContent = "Loading stock data\u2026";
 
@@ -150,20 +171,14 @@ function init() {
     collection(db, "boxes"),
     (snapshot) => {
       const boxDocs = snapshot.docs.map((d) => d.data());
-      allModels = flattenBoxes(boxDocs).map((m) => ({ ...m, source: "database" }));
-      populateFilterOptions();
-      populateBrandOptions();
-      render();
+      dbModels = flattenBoxes(boxDocs).map((m) => ({ ...m, source: "database" }));
+      if (mode === "database") applyMode();
     },
     (err) => {
-      // Firestore couldn't be reached — fall back to the bundled starter data
-      // so the page still shows something, clearly tagged as "File" so you
-      // can tell it's not live.
-      console.error("Firestore read failed, using fallback data:", err);
-      allModels = FALLBACK_MODELS.map((m) => ({ ...m, source: "file" }));
-      populateFilterOptions();
-      populateBrandOptions();
-      render();
+      // Firestore couldn't be reached — auto-switch to file mode so the page
+      // still shows something, clearly tagged "File".
+      console.error("Firestore read failed, switching to file mode:", err);
+      setMode("file");
     }
   );
 
@@ -173,6 +188,8 @@ function init() {
     render();
   });
   els.brand.addEventListener("change", render);
+
+  applyMode(); // paint immediately with whatever's available (file data) while Firestore loads
 }
 
 init();
