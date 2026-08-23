@@ -1,0 +1,107 @@
+{
+  "deviceType": "Android",
+  "brand": "BRAND_NAME_HERE",
+  "boxes": [
+    {
+      "box": "Box Name 1",
+      "models": [
+        {
+          "series": "Series Name",
+          "model": "Model Name",
+          "displayCode": "0000",
+          "stock": [
+            { "place": "Home", "qty": 0 },
+            { "place": "Shop A", "qty": 0 },
+            { "place": "Shop B", "qty": 0 }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+/*
+# How to add/extend brand files
+
+Every brand file (`vivo.json`, `oppo.json`, `moto.json`, `apple.json`, etc.) follows this order top to bottom:
+
+**deviceType → brand → boxes[] → box → models[] → model → stock[] → place + qty**
+
+Copy `_template.json`, rename it to the brand (e.g. `samsung.json`), and fill it in. Everything below shows how to extend each level.
+
+---
+
+## 1. Adding a brand (new file)
+
+Just duplicate the template. One file = one brand.
+
+```json
+{
+  "deviceType": "Android",
+  "brand": "Samsung",
+  "boxes": [ ... ]
+}
+```
+
+`deviceType` is usually `"Android"` or `"iOS"` — keep it consistent across brands of the same OS, since the app filters by this field.
+
+---
+
+## 2. Adding more boxes to a brand
+
+Add another object inside the `"boxes"` array. A brand can have as many boxes as you actually have physical boxes for it.
+
+```json
+"boxes": [
+  { "box": "Vivo 1", "models": [ ... ] },
+  { "box": "Vivo V Box", "models": [ ... ] },
+  { "box": "Vivo T Box", "models": [ ... ] }
+]
+```
+
+---
+
+## 3. Adding more models inside ONE box (the mixed-box case)
+
+This is the case you mentioned — when a box doesn't have enough of one model alone, so a few different models sit together in it. Just add more objects to that box's `"models"` array:
+
+```json
+{
+  "box": "Oppo A-series Box",
+  "models": [
+    { "series": "A-series", "model": "A5", "displayCode": "2201", "stock": [ ... ] },
+    { "series": "A-series", "model": "A9", "displayCode": "2005", "stock": [ ... ] }
+  ]
+}
+```
+
+Each model inside a shared box still tracks its own stock separately — the box is just where they physically sit.
+
+---
+
+## 4. Adding/removing places (Home, Shop A, Shop B, ...)
+
+Every model's `"stock"` array should list the same set of places for consistency, even if qty is `0` there:
+
+```json
+"stock": [
+  { "place": "Home", "qty": 3 },
+  { "place": "Shop A", "qty": 5 },
+  { "place": "Shop B", "qty": 0 },
+  { "place": "Shop C", "qty": 2 }
+]
+```
+
+If you add a brand-new place (like `"Shop C"`), add it to every model's stock array across all brand files so the app's place filter/list stays complete.
+
+---
+
+## 5. Quick checklist when adding a new model
+
+- [ ] Is it going into an existing box, or does it need a new box?
+- [ ] `series`, `model`, `displayCode` filled in (displayCode = the model number, e.g. `1802`)
+- [ ] `stock` array covers every place you track, with correct `qty`
+
+---
+
+Once you've practiced with a few brands using this template, send them over and I'll fold them into the real data set — and then we can update `app.js`/`admin.js` to actually read this box-first structure.*/
