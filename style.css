@@ -1,4 +1,4 @@
-
+/* FILE PATH: style.css  (repo ROOT — NOT inside admin/) */
 :root {
   --bg: #10141a;
   --surface: #1b222a;
@@ -203,6 +203,40 @@ main {
 
 .stock-row .place { color: var(--text); }
 
+.source-tag {
+  display: inline-block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.source-tag.source-db {
+  color: var(--stock-in);
+  background: var(--stock-in-dim);
+  border: 1px solid var(--stock-in);
+}
+
+.source-tag.source-file {
+  color: var(--text-muted);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.box-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+}
+
 .stock-row .qty {
   font-family: "JetBrains Mono", monospace;
   font-weight: 600;
@@ -212,6 +246,11 @@ main {
 
 .qty.in-stock { color: var(--stock-in); background: var(--stock-in-dim); }
 .qty.out-stock { color: var(--stock-out); background: var(--stock-out-dim); }
+
+.stock-row-highlight {
+  outline: 1px solid var(--accent);
+  background: var(--accent-dim);
+}
 
 .empty-state, .error-state {
   text-align: center;

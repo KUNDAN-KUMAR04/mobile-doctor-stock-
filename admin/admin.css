@@ -134,14 +134,20 @@
 }
 
 .stock-input-row .place-name {
-  flex: 1;
+  width: 90px;
+  flex-shrink: 0;
   font-size: 13px;
   color: var(--text-muted);
   font-family: "JetBrains Mono", monospace;
 }
 
+.stock-input-row .stock-box-input {
+  flex: 1;
+}
+
 .stock-input-row input[type="number"] {
   width: 80px;
+  flex-shrink: 0;
 }
 
 .model-list-row {
