@@ -1,0 +1,263 @@
+/* FILE PATH: style.css  (repo ROOT — NOT inside admin/) */
+:root {
+  --bg: #10141a;
+  --surface: #1b222a;
+  --surface-raised: #212a33;
+  --border: #2c3641;
+  --text: #e8edf0;
+  --text-muted: #8a97a3;
+  --accent: #ffb020;
+  --accent-dim: #7a5b1c;
+  --stock-in: #4ade80;
+  --stock-in-dim: #1d3b2a;
+  --stock-out: #f87171;
+  --stock-out-dim: #3b1f1f;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(16, 20, 26, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px 16px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  max-width: 880px;
+  margin: 0 auto 14px;
+}
+
+.brand-mark {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.brand-mark span { color: var(--accent); }
+
+.brand-sub {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.search-row {
+  max-width: 880px;
+  margin: 0 auto;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1 1 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+select.filter-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 11px 12px;
+  font-size: 13px;
+  font-family: "Inter", sans-serif;
+}
+
+select.filter-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+main {
+  max-width: 880px;
+  margin: 24px auto 80px;
+  padding: 0 20px;
+}
+
+.status-line {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  letter-spacing: 0.04em;
+}
+
+.status-line .count { color: var(--accent); }
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* --- Ticket card: signature element --- */
+.ticket {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 18px 16px;
+  overflow: hidden;
+}
+
+.ticket::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background-image: radial-gradient(circle at 10px 0, var(--bg) 5px, transparent 5.5px);
+  background-size: 20px 10px;
+  background-repeat: repeat-x;
+}
+
+.ticket-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.ticket-brand {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+
+.ticket-model {
+  font-family: "Archivo Black", sans-serif;
+  font-size: 17px;
+  margin: 3px 0 2px;
+  line-height: 1.2;
+}
+
+.ticket-series {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ticket-code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.ticket-total {
+  margin: 12px 0 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ticket-total .num { color: var(--text); font-size: 15px; }
+
+.stock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stock-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--surface-raised);
+  font-size: 13px;
+}
+
+.stock-row .place { color: var(--text); }
+
+.box-tag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+}
+
+.stock-row .qty {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+
+.qty.in-stock { color: var(--stock-in); background: var(--stock-in-dim); }
+.qty.out-stock { color: var(--stock-out); background: var(--stock-out-dim); }
+
+.stock-row-highlight {
+  outline: 1px solid var(--accent);
+  background: var(--accent-dim);
+}
+
+.empty-state, .error-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.error-state code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+.admin-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--border);
+}
+
+.admin-link:hover { color: var(--accent); border-color: var(--accent); }
+
+@media (max-width: 480px) {
+  .ticket-model { font-size: 15px; }
+  .brand-mark { font-size: 17px; }
+}

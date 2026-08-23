@@ -1,0 +1,34 @@
+<!-- FILE PATH: index.html  (repo ROOT — NOT inside admin/) -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand-row">
+      <span class="brand-mark">STOCK<span>/</span>FINDER</span>
+      <span class="brand-sub">display inventory across all locations</span>
+    </div>
+    <div class="search-row">
+      <input id="search-input" class="search-input" type="text" placeholder="Search series, model or code e.g. A5, V30, 1802" />
+      <select id="device-type-select" class="filter-select"></select>
+      <select id="brand-select" class="filter-select"></select>
+      <select id="box-select" class="filter-select"></select>
+    </div>
+  </div>
+
+  <main>
+    <div id="status-line" class="status-line"></div>
+    <div id="results" class="results-grid"></div>
+    <a class="admin-link" href="admin/">Admin</a>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
-// FILE PATH: app.js  (repo ROOT)
+// FILE PATH: app.js  (repo ROOT — NOT inside admin/)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH } from "./firebase-config.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -16,34 +16,18 @@ const els = {
   sourceFileBtn: document.getElementById("source-file-btn"),
 };
 
-let mode = "database"; // "database" | "file" — which source currently feeds the page
-let dbModels = [];      // last known Firestore data, tagged "database"
-let allModels = [];      // whichever of dbModels/FALLBACK_MODELS is active, per `mode`
-
-// Used only if Firestore can't be reached. Kept here just so the page never shows
-// a blank error screen — every card sourced from here is tagged "File" (see renderTicket).
-const FALLBACK_MODELS = [
-  { deviceType: "Android", brand: "Vivo", box: "Vivo 1", series: "Y-series", model: "Y18", displayCode: "1802",
-    stock: [{ place: "Home", qty: 3 }, { place: "Shop A", qty: 5 }, { place: "Shop B", qty: 0 }] },
-  { deviceType: "Android", brand: "Vivo", box: "Vivo V Box", series: "V-series", model: "V30", displayCode: "12208",
-    stock: [{ place: "Home", qty: 1 }, { place: "Shop A", qty: 2 }, { place: "Shop B", qty: 0 }] },
-  { deviceType: "Android", brand: "Vivo", box: "Vivo T Box", series: "T-series", model: "T3x", displayCode: "1815",
-    stock: [{ place: "Home", qty: 0 }, { place: "Shop A", qty: 0 }, { place: "Shop B", qty: 4 }] },
-  { deviceType: "iOS", brand: "Apple", box: "Apple Box 1", series: "iPhone", model: "iPhone 13", displayCode: "A2633",
-    stock: [{ place: "Home", qty: 0 }, { place: "Shop A", qty: 1 }, { place: "Shop B", qty: 0 }] },
-  { deviceType: "Android", brand: "Oppo", box: "Oppo A-series Box", series: "A-series", model: "A5", displayCode: "2201",
-    stock: [{ place: "Home", qty: 2 }, { place: "Shop A", qty: 0 }, { place: "Shop B", qty: 1 }] },
-  { deviceType: "Android", brand: "Oppo", box: "Oppo A-series Box", series: "A-series", model: "A9", displayCode: "2005",
-    stock: [{ place: "Home", qty: 0 }, { place: "Shop A", qty: 3 }, { place: "Shop B", qty: 3 }] },
-  { deviceType: "Android", brand: "Moto", box: "Moto Box 1", series: "G-series", model: "G54", displayCode: "3105",
-    stock: [{ place: "Home", qty: 1 }, { place: "Shop A", qty: 1 }, { place: "Shop B", qty: 0 }] },
-];
+let mode = "database";   // "database" | "file" — which source currently feeds the page
+let dbModels = [];        // last known Firestore data, tagged "database"
+let fileModels = [];      // last known GitHub JSON data, tagged "file"
+let fileModelsLoaded = false; // only fetch from GitHub once per page load; cached after that
+let allModels = [];       // whichever of dbModels/fileModels is active, per `mode`
 
 function showError(message) {
   els.results.innerHTML = `<div class="error-state">${message}</div>`;
   els.status.textContent = "";
 }
 
+// ---------- Database (Firestore) ----------
 // Flatten box docs (deviceType/brand/box/models[]) into one row per model,
 // keeping the box name attached for display only.
 function flattenBoxes(boxDocs) {
@@ -64,6 +48,51 @@ function flattenBoxes(boxDocs) {
   return models;
 }
 
+// ---------- File (GitHub JSON, data/<deviceType>/<brand>.json) ----------
+// Reads live from the GitHub Contents API — same shape your config.yml (Decap CMS) writes.
+async function loadFileModels() {
+  if (fileModelsLoaded) return fileModels; // cached after first successful load this page-view
+
+  const apiBase = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents`;
+
+  const dataDirRes = await fetch(`${apiBase}/data?ref=${GITHUB_BRANCH}`);
+  if (!dataDirRes.ok) {
+    throw new Error(`Could not read the /data folder (status ${dataDirRes.status}). Check GITHUB_OWNER/GITHUB_REPO in firebase-config.js and that the repo is public.`);
+  }
+  const dataDirItems = await dataDirRes.json();
+  const deviceTypeDirs = dataDirItems.filter((i) => i.type === "dir");
+
+  const models = [];
+  for (const dt of deviceTypeDirs) {
+    const brandRes = await fetch(`${apiBase}/data/${dt.name}?ref=${GITHUB_BRANCH}`);
+    if (!brandRes.ok) continue;
+    const brandFiles = await brandRes.json();
+
+    for (const bf of brandFiles.filter((f) => f.type === "file" && f.name.endsWith(".json"))) {
+      const brandDataRes = await fetch(bf.download_url);
+      if (!brandDataRes.ok) continue;
+      const brandData = await brandDataRes.json();
+
+      for (const m of brandData.models || []) {
+        models.push({
+          deviceType: brandData.deviceType || dt.name,
+          brand: brandData.brand || bf.name.replace(".json", ""),
+          box: "",
+          series: m.series || "",
+          model: m.model || "",
+          displayCode: m.displayCode || "",
+          stock: m.stock || [],
+        });
+      }
+    }
+  }
+
+  fileModels = models;
+  fileModelsLoaded = true;
+  return models;
+}
+
+// ---------- Filters / rendering (shared by both modes) ----------
 function populateFilterOptions() {
   const deviceTypes = [...new Set(allModels.map((m) => m.deviceType))].sort();
   const currentDT = els.deviceType.value;
@@ -146,11 +175,27 @@ function renderTicket(m) {
   </div>`;
 }
 
-function applyMode() {
-  allModels = mode === "database" ? dbModels : FALLBACK_MODELS.map((m) => ({ ...m, source: "file" }));
-  populateFilterOptions();
-  populateBrandOptions();
-  render();
+// ---------- Mode switching ----------
+async function applyMode() {
+  if (mode === "database") {
+    allModels = dbModels;
+    populateFilterOptions();
+    populateBrandOptions();
+    render();
+    return;
+  }
+
+  // mode === "file"
+  els.status.textContent = "Loading stock data from GitHub\u2026";
+  try {
+    const models = await loadFileModels();
+    allModels = models.map((m) => ({ ...m, source: "file" }));
+    populateFilterOptions();
+    populateBrandOptions();
+    render();
+  } catch (err) {
+    showError(err.message);
+  }
 }
 
 function setMode(newMode) {
@@ -175,7 +220,7 @@ function init() {
       if (mode === "database") applyMode();
     },
     (err) => {
-      // Firestore couldn't be reached — auto-switch to file mode so the page
+      // Firestore couldn't be reached — auto-switch to File mode so the page
       // still shows something, clearly tagged "File".
       console.error("Firestore read failed, switching to file mode:", err);
       setMode("file");
@@ -189,7 +234,7 @@ function init() {
   });
   els.brand.addEventListener("change", render);
 
-  applyMode(); // paint immediately with whatever's available (file data) while Firestore loads
+  applyMode(); // paint immediately with whatever's available while Firestore loads
 }
 
 init();
