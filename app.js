@@ -28,22 +28,31 @@ function showError(message) {
 }
 
 // ---------- Database (Firestore) ----------
-// Flatten box docs (deviceType/brand/box/models[]) into one row per model,
-// keeping the box name attached for display only.
+// Flatten box docs into one row PER NAME, not per stored item — a single item
+// can represent a group of interchangeable models sharing one universal
+// display and one shared qty (e.g. "Y18 / Y19 / 1902"), saved via the admin
+// panel's "Model name(s)" field. This mirrors normalizeBrandData()'s
+// modelGroup splitting below, so Database and File search/display feel
+// identical no matter which source is active. `names` is the modern shape;
+// older docs saved before this only have a single `model` string (optionally
+// with a separate `aliases` array) — both are folded into the same list here.
 function flattenBoxes(boxDocs) {
   const models = [];
   for (const b of boxDocs) {
     for (const m of b.models || []) {
-      models.push({
-        deviceType: b.deviceType,
-        brand: b.brand,
-        box: b.box,
-        series: m.series || "",
-        model: m.model || "",
-        displayCode: m.displayCode || "",
-        aliases: m.aliases || [],
-        stock: m.stock || [],
-      });
+      const names = m.names && m.names.length ? m.names : [m.model, ...(m.aliases || [])].filter(Boolean);
+      for (const name of names) {
+        models.push({
+          deviceType: b.deviceType,
+          brand: b.brand,
+          box: b.box,
+          series: m.series || "",
+          model: name,
+          displayCode: m.displayCode || "",
+          aliases: names.filter((n) => n !== name),
+          stock: m.stock || [],
+        });
+      }
     }
   }
   return models;
@@ -238,7 +247,7 @@ function renderTicket(m) {
         <div class="ticket-brand">${m.brand} &middot; ${m.deviceType}</div>
         <div class="ticket-model">${m.model}</div>
         <div class="ticket-series">${m.series}</div>
-        ${m.aliases && m.aliases.length ? `<div class="ticket-aliases">aka ${m.aliases.join(", ")}</div>` : ""}
+        ${m.aliases && m.aliases.length ? `<div class="ticket-aliases">shares stock with: ${m.aliases.join(", ")}</div>` : ""}
       </div>
       ${m.displayCode ? `<span class="ticket-code">${m.displayCode}</span>` : ""}
     </div>

@@ -13,6 +13,13 @@ const db = getFirestore(app);
 
 const OTHER_VALUE = "__other__";
 
+// localStorage keys for "remember the last device type / brand / box" so bulk
+// entry of the same brand doesn't force reselecting every single time. Just a
+// convenience default — the person can always change it manually.
+const LS_DT = "md_admin_last_deviceType";
+const LS_BRAND = "md_admin_last_brand";
+const LS_BOX = "md_admin_last_box";
+
 let currentUser = null;
 let boxDocs = [];   // raw box documents, each with its firestore doc id attached as _id
 let places = [];
@@ -35,6 +42,26 @@ function escapeHtml(s) {
 }
 function naturalSort(arr) {
   return [...arr].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+}
+function rememberSelection(deviceType, brand, box) {
+  try {
+    localStorage.setItem(LS_DT, deviceType || "");
+    localStorage.setItem(LS_BRAND, brand || "");
+    localStorage.setItem(LS_BOX, box || "");
+  } catch (e) {
+    /* private browsing / storage disabled — just skip remembering */
+  }
+}
+function getRemembered() {
+  try {
+    return {
+      deviceType: localStorage.getItem(LS_DT) || "",
+      brand: localStorage.getItem(LS_BRAND) || "",
+      box: localStorage.getItem(LS_BOX) || "",
+    };
+  } catch (e) {
+    return { deviceType: "", brand: "", box: "" };
+  }
 }
 
 // ---------- Auth guard ----------
@@ -91,11 +118,36 @@ function migrateMissingIds() {
   }
 }
 
+// Flattens box docs into one row PER NAME, not per stored item — a single
+// item can represent a group of interchangeable models sharing one universal
+// display (e.g. "Y18 / Y19 / 1902" all use the exact same part and one shared
+// qty). Every name in the group gets searchable/editable as its own row, but
+// all rows from the same item share the same `id`, so editing or deleting any
+// one of them acts on the whole shared entry — exactly how the File-mode JSON
+// (modelGroup + qty) already behaves, so Database and File feel identical.
+// `m.names` is the modern shape; older docs saved before this only have a
+// single `model` string (optionally with a separate `aliases` array) — both
+// are folded into the same names list here for backward compatibility.
 function flatModels() {
   const out = [];
   for (const b of boxDocs) {
     for (const m of b.models || []) {
-      out.push({ deviceType: b.deviceType, brand: b.brand, box: b.box, boxDocId: b._id, ...m });
+      const names = m.names && m.names.length ? m.names : [m.model, ...(m.aliases || [])].filter(Boolean);
+      for (const name of names) {
+        out.push({
+          deviceType: b.deviceType,
+          brand: b.brand,
+          box: b.box,
+          boxDocId: b._id,
+          id: m.id,
+          series: m.series || "",
+          model: name,
+          names,
+          displayCode: m.displayCode || "",
+          aliases: names.filter((n) => n !== name),
+          stock: m.stock || [],
+        });
+      }
     }
   }
   return out;
@@ -214,10 +266,15 @@ function wireSmartToggle(selectId, otherId) {
   });
 }
 
+// Device type / Brand / Box "remember" the last used selection (see LS_* keys
+// above) instead of resetting to blank after every save — falls back to
+// whatever's already picked, then to the last remembered choice, so a batch
+// of the same brand doesn't need reselecting each time.
 function refreshFormSmartFields() {
-  const curDT = smartValue("f-deviceType", "f-deviceType-other");
-  const curBrand = smartValue("f-brand", "f-brand-other");
-  const curBox = smartValue("f-box", "f-box-other");
+  const remembered = getRemembered();
+  const curDT = smartValue("f-deviceType", "f-deviceType-other") || remembered.deviceType;
+  const curBrand = smartValue("f-brand", "f-brand-other") || remembered.brand;
+  const curBox = smartValue("f-box", "f-box-other") || remembered.box;
   populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), curDT);
   populateSmartSelect("f-brand", "f-brand-other", getBrands(curDT), curBrand);
   populateSmartSelect("f-box", "f-box-other", getBoxes(curDT, curBrand), curBox);
@@ -278,16 +335,19 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
   const brand = smartValue("f-brand", "f-brand-other");
   const box = smartValue("f-box", "f-box-other");
   const series = document.getElementById("f-series").value.trim();
-  const modelName = document.getElementById("f-model").value.trim();
   const displayCode = document.getElementById("f-code").value.trim();
-  const aliases = document
-    .getElementById("f-aliases")
-    .value.split(",")
-    .map((a) => a.trim())
+
+  // One item can cover several interchangeable model names sharing a single
+  // universal part/display and a single shared qty — e.g. "Y18 / Y19 / 1902".
+  // Same "/" convention as the File-mode JSON, so it feels identical either way.
+  const names = document
+    .getElementById("f-model")
+    .value.split("/")
+    .map((s) => s.trim())
     .filter(Boolean);
 
-  if (!deviceType || !brand || !box || !modelName) {
-    showToast("Device type, brand, box and model name are required.", "fail");
+  if (!deviceType || !brand || !box || names.length === 0) {
+    showToast("Device type, brand, box and at least one model name are required.", "fail");
     return;
   }
 
@@ -296,15 +356,15 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
     qty: Number(inp.value) || 0,
   }));
 
-  // Keyed by id, not name — this is what allows any number of models (even
-  // ones sharing the same name, e.g. a shared display used by several
-  // phone models) to live in the same box without overwriting each other.
-  const modelObj = { id: editing ? editing.id : genId(), series, model: modelName, displayCode, aliases, stock };
+  // Keyed by id, not name — this is what allows any number of items (even
+  // ones sharing a name) to live in the same box without overwriting each
+  // other, and lets one item carry several names sharing one qty.
+  const modelObj = { id: editing ? editing.id : genId(), series, names, displayCode, stock };
 
   try {
     // Only need to pull the model out of its old box doc if it's actually
-    // moving to a different box — renaming in place is handled by the
-    // id-matched upsert below, no removal needed.
+    // moving to a different box — renaming/regrouping in place is handled by
+    // the id-matched upsert below, no removal needed.
     if (editing) {
       const oldId = boxDocId(editing.deviceType, editing.brand, editing.box);
       const newId = boxDocId(deviceType, brand, box);
@@ -313,6 +373,7 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
       }
     }
     await upsertModelIntoBox(deviceType, brand, box, modelObj);
+    rememberSelection(deviceType, brand, box);
     showToast("Saved.", "success");
     resetForm();
   } catch (err) {
@@ -322,7 +383,7 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
 
 // Writes/merges one model into its box document (creating the box doc if needed).
 // Matches by id only, so adding a NEW entry (fresh id) always adds a new item
-// -- it never overwrites an existing one just because the name matches.
+// -- it never overwrites an existing one just because a name matches.
 async function upsertModelIntoBox(deviceType, brand, box, modelObj) {
   const id = boxDocId(deviceType, brand, box);
   const ref = doc(db, "boxes", id);
@@ -348,18 +409,28 @@ async function removeModelFromBox(boxId, id) {
   }
 }
 
-document.getElementById("cancel-edit-btn").addEventListener("click", resetForm);
+document.getElementById("cancel-edit-btn").addEventListener("click", () => resetForm());
 
+// Clears the per-item fields (series/names/code/stock) but keeps whatever
+// Device type / Brand / Box are currently selected — that's the "remember
+// the last selection" behavior for fast batch entry. Pick a different
+// device type/brand/box manually any time to override it.
 function resetForm() {
   editing = null;
-  document.getElementById("model-form").reset();
-  populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), "");
-  populateSmartSelect("f-brand", "f-brand-other", getBrands(""), "");
-  populateSmartSelect("f-box", "f-box-other", getBoxes("", ""), "");
+  const dt = smartValue("f-deviceType", "f-deviceType-other");
+  const brand = smartValue("f-brand", "f-brand-other");
+  const box = smartValue("f-box", "f-box-other");
+
+  document.getElementById("f-series").value = "";
+  document.getElementById("f-model").value = "";
+  document.getElementById("f-code").value = "";
+
+  populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), dt);
+  populateSmartSelect("f-brand", "f-brand-other", getBrands(dt), brand);
+  populateSmartSelect("f-box", "f-box-other", getBoxes(dt, brand), box);
   refreshSeriesSuggestions();
   document.getElementById("form-title").textContent = "Add / edit model";
   document.getElementById("cancel-edit-btn").style.display = "none";
-  document.getElementById("f-aliases").value = "";
   renderStockInputs();
 }
 
@@ -369,14 +440,14 @@ function startEdit(m) {
   populateSmartSelect("f-brand", "f-brand-other", getBrands(m.deviceType), m.brand);
   populateSmartSelect("f-box", "f-box-other", getBoxes(m.deviceType, m.brand), m.box);
   refreshSeriesSuggestions();
+  const groupNames = m.names && m.names.length ? m.names : [m.model];
   document.getElementById("f-series").value = m.series;
-  document.getElementById("f-model").value = m.model;
+  document.getElementById("f-model").value = groupNames.join(" / ");
   document.getElementById("f-code").value = m.displayCode;
-  document.getElementById("f-aliases").value = (m.aliases || []).join(", ");
   const prefill = {};
   (m.stock || []).forEach((s) => (prefill[s.place] = { qty: s.qty }));
   renderStockInputs(prefill);
-  document.getElementById("form-title").textContent = `Editing ${m.brand} ${m.model}`;
+  document.getElementById("form-title").textContent = `Editing ${m.brand} ${groupNames.join(" / ")}`;
   document.getElementById("cancel-edit-btn").style.display = "inline-block";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -490,8 +561,9 @@ function renderInventoryList() {
           .join("");
         const aliasLine =
           m.aliases && m.aliases.length
-            ? `<div class="ticket-aliases">aka ${m.aliases.map(escapeHtml).join(", ")}</div>`
+            ? `<div class="ticket-aliases">shares stock with: ${m.aliases.map(escapeHtml).join(", ")}</div>`
             : "";
+        const groupNames = (m.names && m.names.length ? m.names : [m.model]).join(", ");
 
         return `<div class="ticket">
           <div class="ticket-header">
@@ -507,7 +579,7 @@ function renderInventoryList() {
           <div class="stock-list">${stockRows || `<div class="status-line" style="margin:0;">No stock recorded yet.</div>`}</div>
           <div class="ticket-admin-actions">
             <button type="button" class="btn-secondary edit-model-btn" data-boxid="${escapeHtml(m.boxDocId)}" data-id="${escapeHtml(m.id)}">Edit</button>
-            <button type="button" class="btn-danger delete-model-btn" data-boxid="${escapeHtml(m.boxDocId)}" data-id="${escapeHtml(m.id)}" data-model="${escapeHtml(m.model)}">Delete</button>
+            <button type="button" class="btn-danger delete-model-btn" data-boxid="${escapeHtml(m.boxDocId)}" data-id="${escapeHtml(m.id)}" data-names="${escapeHtml(groupNames)}">Delete</button>
           </div>
         </div>`;
       })
@@ -524,7 +596,7 @@ document.getElementById("inventory-list").addEventListener("click", async (e) =>
       if (m) startEdit(m);
     }
     if (t.classList.contains("delete-model-btn")) {
-      if (!confirm(`Delete ${t.dataset.model}?`)) return;
+      if (!confirm(`Delete "${t.dataset.names}"? This removes the whole shared entry (all its names and its stock count).`)) return;
       await removeModelFromBox(t.dataset.boxid, t.dataset.id);
       showToast("Deleted.", "success");
     }
