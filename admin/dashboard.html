@@ -1,4 +1,4 @@
-<!-- FILE PATH: admin/dashboard.html  (INSIDE the admin folder — this is the MAIN admin panel, shown AFTER login) -->
+<!-- FILE PATH: admin/dashboard.html  (INSIDE the admin folder — the MAIN admin panel, shown AFTER login) -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -25,49 +25,81 @@
   </div>
 
   <main>
+    <!-- Places editor -->
     <div class="panel">
       <h2>Places</h2>
       <div id="places-editor" class="places-editor"></div>
-      <button id="add-place-btn" class="btn-secondary">+ Add place</button>
-      <button id="save-places-btn" class="btn-primary" style="margin-left: 8px;">Save places</button>
+      <div style="display:flex; gap:10px; margin-top: 8px;">
+        <button type="button" id="add-place-btn" class="btn-secondary">+ Add place</button>
+        <button type="button" id="save-places-btn" class="btn-primary">Save places</button>
+      </div>
     </div>
 
+    <!-- Add / edit model -->
     <div class="panel">
       <h2 id="form-title">Add / edit model</h2>
       <form id="model-form">
         <div class="form-grid">
           <div>
-            <label class="field-label">Device type</label>
-            <input id="f-deviceType" class="search-input" list="deviceTypeList" placeholder="Android" required />
-            <datalist id="deviceTypeList"></datalist>
+            <label class="field-label" for="f-deviceType">Device type</label>
+            <select id="f-deviceType" class="search-input"></select>
+            <input id="f-deviceType-other" class="search-input" style="display:none; margin-top:6px;" placeholder="New device type, e.g. Android" />
           </div>
           <div>
-            <label class="field-label">Brand</label>
-            <input id="f-brand" class="search-input" list="brandList" placeholder="Vivo" required />
-            <datalist id="brandList"></datalist>
+            <label class="field-label" for="f-brand">Brand</label>
+            <select id="f-brand" class="search-input"></select>
+            <input id="f-brand-other" class="search-input" style="display:none; margin-top:6px;" placeholder="New brand, e.g. Vivo" />
           </div>
           <div>
-            <label class="field-label">Series</label>
-            <input id="f-series" class="search-input" placeholder="Y-series" />
+            <label class="field-label" for="f-box">Box</label>
+            <select id="f-box" class="search-input"></select>
+            <input id="f-box-other" class="search-input" style="display:none; margin-top:6px;" placeholder="New box, e.g. Vivo 1" />
           </div>
           <div>
-            <label class="field-label">Model</label>
-            <input id="f-model" class="search-input" placeholder="Y18" required />
+            <label class="field-label" for="f-code">Model number (displayCode)</label>
+            <input id="f-code" class="search-input" placeholder="e.g. 1802" />
           </div>
-          <div class="full">
-            <label class="field-label">Display code</label>
-            <input id="f-code" class="search-input" placeholder="1802" />
+          <div>
+            <label class="field-label" for="f-series">Series</label>
+            <input id="f-series" class="search-input" list="seriesList" placeholder="e.g. Y-series" />
+            <datalist id="seriesList"></datalist>
+          </div>
+          <div>
+            <label class="field-label" for="f-model">Model name(s)</label>
+            <input id="f-model" class="search-input" placeholder="e.g. Y18 / Y19 / 1902" required />
+          </div>
+          <div>
+            <label class="field-label" for="f-stock">Stock quantity</label>
+            <input id="f-stock" class="search-input" type="number" min="0" step="1" placeholder="e.g. 10" />
           </div>
         </div>
+
+        <div class="status-line" style="margin: -4px 0 12px;">
+          Separate multiple names with <strong>/</strong> if several models share this exact same stock — e.g. a universal display used across several phones. They'll all be searchable and all show the same quantity.
+        </div>
+
         <label class="field-label">Stock by place</label>
         <div id="stock-inputs"></div>
-        <button type="submit" class="btn-primary" style="margin-top: 10px;">Save model</button>
-        <button type="button" id="cancel-edit-btn" class="btn-secondary" style="margin-top: 10px; display: none;">Cancel edit</button>
+
+        <div style="display:flex; gap:10px; margin-top: 12px;">
+          <button type="submit" class="btn-primary">Save model</button>
+          <button type="button" id="cancel-edit-btn" class="btn-secondary" style="display:none;">Cancel edit</button>
+        </div>
       </form>
     </div>
 
+    <!-- Existing inventory -->
     <div class="panel">
-      <h2>Existing inventory</h2>
+      <h2>Inventory</h2>
+      <div class="inventory-filters">
+        <input id="inv-search" class="search-input" type="text" style="flex: 1 1 220px;" placeholder="Search inventory (model, code, alias…)" />
+        <select id="inv-deviceType" class="filter-select"></select>
+        <select id="inv-brand" class="filter-select"></select>
+        <select id="inv-box" class="filter-select"></select>
+        <button type="button" id="inv-clear-btn" class="btn-secondary">Clear filters</button>
+        <button type="button" id="inv-delete-brand-btn" class="btn-danger">Delete brand</button>
+      </div>
+      <div id="inv-count" class="status-line"></div>
       <div id="inventory-list"></div>
     </div>
   </main>
