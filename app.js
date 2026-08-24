@@ -49,7 +49,71 @@ function flattenBoxes(boxDocs) {
 }
 
 // ---------- File (GitHub JSON, data/<deviceType>/<brand>.json) ----------
-// Reads live from the GitHub Contents API — same shape your config.yml (Decap CMS) writes.
+// Two JSON shapes are supported on the FILE side only (this does not touch the
+// admin panel or the Database/Firestore path at all):
+//
+// OLD shape (what write.js / the admin panel still saves):
+//   { deviceType, brand, models: [ { box, series, model, displayCode, stock: [{place, qty}] } ] }
+//
+// NEW shape (e.g. oppo_realme.json — one location, boxes of grouped models):
+//   { deviceType, brand, location, boxes: [ { boxTag, items: [ { modelGroup, qty } ] } ] }
+//   modelGroup can be several model names separated by "/", all sharing the same qty.
+//
+// normalizeBrandData() turns either shape into the same flat row shape the
+// rest of the app (filters, search, rendering) already expects, so File mode
+// works no matter which format a given brand file is in.
+function normalizeBrandData(raw, dirName, fileNameNoExt) {
+  const deviceType = raw.deviceType || dirName;
+  const brand = raw.brand || fileNameNoExt;
+
+  // NEW format: boxes[] of items[] with a single shared "location"
+  if (Array.isArray(raw.boxes)) {
+    const location = (raw.location || "").trim();
+    const models = [];
+    for (const box of raw.boxes) {
+      const boxTag = box.boxTag || "";
+      for (const item of box.items || []) {
+        const qty = Number(item.qty) || 0;
+        const names = String(item.modelGroup || "")
+          .split("/")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        for (const name of names) {
+          models.push({
+            deviceType,
+            brand,
+            box: boxTag,
+            series: "",
+            model: name,
+            displayCode: "",
+            stock: location ? [{ place: location, qty }] : [],
+          });
+        }
+      }
+    }
+    return models;
+  }
+
+  // OLD format: flat models[] array, each with its own stock-by-place list
+  if (Array.isArray(raw.models)) {
+    return raw.models.map((m) => ({
+      deviceType,
+      brand,
+      box: m.box || "",
+      series: m.series || "",
+      model: m.model || "",
+      displayCode: m.displayCode || "",
+      stock: m.stock || [],
+    }));
+  }
+
+  // Unrecognized shape — skip this one file instead of breaking File mode entirely.
+  console.warn(`app.js: unrecognized JSON format in data/${dirName}/${fileNameNoExt}.json — skipped.`);
+  return [];
+}
+
+// Reads live from the GitHub Contents API — same folder layout your config.yml
+// (Decap CMS) writes to, but now format-tolerant per file (see normalizeBrandData).
 async function loadFileModels() {
   if (fileModelsLoaded) return fileModels; // cached after first successful load this page-view
 
@@ -69,20 +133,17 @@ async function loadFileModels() {
     const brandFiles = await brandRes.json();
 
     for (const bf of brandFiles.filter((f) => f.type === "file" && f.name.endsWith(".json"))) {
-      const brandDataRes = await fetch(bf.download_url);
-      if (!brandDataRes.ok) continue;
-      const brandData = await brandDataRes.json();
+      try {
+        const brandDataRes = await fetch(bf.download_url);
+        if (!brandDataRes.ok) continue;
+        const brandData = await brandDataRes.json();
 
-      for (const m of brandData.models || []) {
-        models.push({
-          deviceType: brandData.deviceType || dt.name,
-          brand: brandData.brand || bf.name.replace(".json", ""),
-          box: m.box || "",
-          series: m.series || "",
-          model: m.model || "",
-          displayCode: m.displayCode || "",
-          stock: m.stock || [],
-        });
+        const fileNameNoExt = bf.name.replace(/\.json$/i, "");
+        models.push(...normalizeBrandData(brandData, dt.name, fileNameNoExt));
+      } catch (err) {
+        // A single malformed/unexpected file should never take down the whole
+        // File-mode load — log it and keep going with everything else.
+        console.warn(`app.js: failed to load data/${dt.name}/${bf.name}:`, err);
       }
     }
   }
