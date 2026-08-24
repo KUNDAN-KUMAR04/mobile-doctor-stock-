@@ -41,6 +41,7 @@ function flattenBoxes(boxDocs) {
         series: m.series || "",
         model: m.model || "",
         displayCode: m.displayCode || "",
+        aliases: m.aliases || [],
         stock: m.stock || [],
       });
     }
@@ -53,11 +54,13 @@ function flattenBoxes(boxDocs) {
 // admin panel or the Database/Firestore path at all):
 //
 // OLD shape (what write.js / the admin panel still saves):
-//   { deviceType, brand, models: [ { box, series, model, displayCode, stock: [{place, qty}] } ] }
+//   { deviceType, brand, models: [ { box, series, model, displayCode, aliases, stock: [{place, qty}] } ] }
 //
 // NEW shape (e.g. oppo_realme.json — one location, boxes of grouped models):
-//   { deviceType, brand, location, boxes: [ { boxTag, items: [ { modelGroup, qty } ] } ] }
+//   { deviceType, brand, location, boxes: [ { boxTag, items: [ { modelGroup, qty, aliases } ] } ] }
 //   modelGroup can be several model names separated by "/", all sharing the same qty.
+//   An optional per-item "aliases" (array, or comma-separated string) is supported too,
+//   applied to every name split out of that modelGroup.
 //
 // normalizeBrandData() turns either shape into the same flat row shape the
 // rest of the app (filters, search, rendering) already expects, so File mode
@@ -78,6 +81,12 @@ function normalizeBrandData(raw, dirName, fileNameNoExt) {
           .split("/")
           .map((s) => s.trim())
           .filter(Boolean);
+        const aliases = Array.isArray(item.aliases)
+          ? item.aliases
+          : String(item.aliases || "")
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
         for (const name of names) {
           models.push({
             deviceType,
@@ -86,6 +95,7 @@ function normalizeBrandData(raw, dirName, fileNameNoExt) {
             series: "",
             model: name,
             displayCode: "",
+            aliases,
             stock: location ? [{ place: location, qty }] : [],
           });
         }
@@ -103,6 +113,7 @@ function normalizeBrandData(raw, dirName, fileNameNoExt) {
       series: m.series || "",
       model: m.model || "",
       displayCode: m.displayCode || "",
+      aliases: m.aliases || [],
       stock: m.stock || [],
     }));
   }
@@ -186,7 +197,7 @@ function matchesFilters(m, f) {
   if (f.deviceType && m.deviceType !== f.deviceType) return false;
   if (f.brand && m.brand !== f.brand) return false;
   if (f.text) {
-    const haystack = `${m.series} ${m.model} ${m.displayCode}`.toLowerCase();
+    const haystack = `${m.series} ${m.model} ${m.displayCode} ${(m.aliases || []).join(" ")}`.toLowerCase();
     if (!haystack.includes(f.text)) return false;
   }
   return true;
@@ -227,6 +238,7 @@ function renderTicket(m) {
         <div class="ticket-brand">${m.brand} &middot; ${m.deviceType}</div>
         <div class="ticket-model">${m.model}</div>
         <div class="ticket-series">${m.series}</div>
+        ${m.aliases && m.aliases.length ? `<div class="ticket-aliases">aka ${m.aliases.join(", ")}</div>` : ""}
       </div>
       ${m.displayCode ? `<span class="ticket-code">${m.displayCode}</span>` : ""}
     </div>

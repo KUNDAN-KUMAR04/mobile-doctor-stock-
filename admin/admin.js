@@ -16,10 +16,14 @@ const OTHER_VALUE = "__other__";
 let currentUser = null;
 let boxDocs = [];   // raw box documents, each with its firestore doc id attached as _id
 let places = [];
-// editing holds the ORIGINAL location of a model being edited, so we know
+// editing holds the ORIGINAL location + id of a model being edited, so we know
 // which box doc to remove it from if it's being moved to a different box.
-let editing = null; // { deviceType, brand, box, model }
+let editing = null; // { deviceType, brand, box, id }
 
+function genId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 function slug(s) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
@@ -53,6 +57,7 @@ document.getElementById("logout-link").addEventListener("click", (e) => {
 function loadEverything() {
   onSnapshot(collection(db, "boxes"), (snap) => {
     boxDocs = snap.docs.map((d) => ({ _id: d.id, ...d.data() }));
+    migrateMissingIds();
     renderAll();
   });
 
@@ -60,6 +65,30 @@ function loadEverything() {
     places = snap.exists() ? snap.data().places || [] : [];
     renderAll();
   });
+}
+
+// Older entries were saved without a unique `id`, which is what caused the
+// "second model with the same name overwrites the first" bug — matching used
+// to happen on the model NAME. This backfills an id onto any model missing
+// one (in-memory immediately so the UI is correct this tick, and persisted
+// to Firestore in the background so it only has to happen once per box).
+function migrateMissingIds() {
+  for (const b of boxDocs) {
+    let changed = false;
+    const models = (b.models || []).map((m) => {
+      if (!m.id) {
+        changed = true;
+        return { ...m, id: genId() };
+      }
+      return m;
+    });
+    if (changed) {
+      b.models = models;
+      setDoc(doc(db, "boxes", b._id), { deviceType: b.deviceType, brand: b.brand, box: b.box, models }).catch((e) =>
+        console.error("ID migration failed for box", b._id, e)
+      );
+    }
+  }
 }
 
 function flatModels() {
@@ -228,6 +257,10 @@ wireSmartToggle("f-box", "f-box-other");
 // ---------- Model form ----------
 function renderStockInputs(prefill = {}) {
   const el = document.getElementById("stock-inputs");
+  if (places.length === 0) {
+    el.innerHTML = `<div class="status-line">No places yet — add one in the "Places" panel above and save it, then it'll show up here for entering stock.</div>`;
+    return;
+  }
   el.innerHTML = places
     .map((p) => {
       const entry = prefill[p] || { qty: 0 };
@@ -247,6 +280,11 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
   const series = document.getElementById("f-series").value.trim();
   const modelName = document.getElementById("f-model").value.trim();
   const displayCode = document.getElementById("f-code").value.trim();
+  const aliases = document
+    .getElementById("f-aliases")
+    .value.split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
 
   if (!deviceType || !brand || !box || !modelName) {
     showToast("Device type, brand, box and model name are required.", "fail");
@@ -258,15 +296,20 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
     qty: Number(inp.value) || 0,
   }));
 
-  const modelObj = { series, model: modelName, displayCode, stock };
+  // Keyed by id, not name — this is what allows any number of models (even
+  // ones sharing the same name, e.g. a shared display used by several
+  // phone models) to live in the same box without overwriting each other.
+  const modelObj = { id: editing ? editing.id : genId(), series, model: modelName, displayCode, aliases, stock };
 
   try {
-    // If editing and the model moved to a different box, pull it out of the old box first.
+    // Only need to pull the model out of its old box doc if it's actually
+    // moving to a different box — renaming in place is handled by the
+    // id-matched upsert below, no removal needed.
     if (editing) {
       const oldId = boxDocId(editing.deviceType, editing.brand, editing.box);
       const newId = boxDocId(deviceType, brand, box);
-      if (oldId !== newId || editing.model !== modelName) {
-        await removeModelFromBox(oldId, editing.model);
+      if (oldId !== newId) {
+        await removeModelFromBox(oldId, editing.id);
       }
     }
     await upsertModelIntoBox(deviceType, brand, box, modelObj);
@@ -278,24 +321,26 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
 });
 
 // Writes/merges one model into its box document (creating the box doc if needed).
+// Matches by id only, so adding a NEW entry (fresh id) always adds a new item
+// -- it never overwrites an existing one just because the name matches.
 async function upsertModelIntoBox(deviceType, brand, box, modelObj) {
   const id = boxDocId(deviceType, brand, box);
   const ref = doc(db, "boxes", id);
   const snap = await getDoc(ref);
   const existing = snap.exists() ? snap.data().models || [] : [];
-  const idx = existing.findIndex((m) => m.model === modelObj.model);
+  const idx = existing.findIndex((m) => m.id === modelObj.id);
   if (idx >= 0) existing[idx] = modelObj;
   else existing.push(modelObj);
 
   await setDoc(ref, { deviceType, brand, box, models: existing });
 }
 
-// Removes a model by name from a box doc; deletes the box doc entirely if it becomes empty.
-async function removeModelFromBox(boxId, modelName) {
+// Removes a model by id from a box doc; deletes the box doc entirely if it becomes empty.
+async function removeModelFromBox(boxId, id) {
   const ref = doc(db, "boxes", boxId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
-  const remaining = (snap.data().models || []).filter((m) => m.model !== modelName);
+  const remaining = (snap.data().models || []).filter((m) => m.id !== id);
   if (remaining.length === 0) {
     await deleteDoc(ref);
   } else {
@@ -314,11 +359,12 @@ function resetForm() {
   refreshSeriesSuggestions();
   document.getElementById("form-title").textContent = "Add / edit model";
   document.getElementById("cancel-edit-btn").style.display = "none";
+  document.getElementById("f-aliases").value = "";
   renderStockInputs();
 }
 
 function startEdit(m) {
-  editing = { deviceType: m.deviceType, brand: m.brand, box: m.box, model: m.model };
+  editing = { deviceType: m.deviceType, brand: m.brand, box: m.box, id: m.id };
   populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), m.deviceType);
   populateSmartSelect("f-brand", "f-brand-other", getBrands(m.deviceType), m.brand);
   populateSmartSelect("f-box", "f-box-other", getBoxes(m.deviceType, m.brand), m.box);
@@ -326,6 +372,7 @@ function startEdit(m) {
   document.getElementById("f-series").value = m.series;
   document.getElementById("f-model").value = m.model;
   document.getElementById("f-code").value = m.displayCode;
+  document.getElementById("f-aliases").value = (m.aliases || []).join(", ");
   const prefill = {};
   (m.stock || []).forEach((s) => (prefill[s.place] = { qty: s.qty }));
   renderStockInputs(prefill);
@@ -368,80 +415,118 @@ document.getElementById("inv-clear-btn").addEventListener("click", () => {
   document.getElementById("inv-deviceType").value = "";
   document.getElementById("inv-brand").value = "";
   document.getElementById("inv-box").value = "";
+  document.getElementById("inv-search").value = "";
   refreshInventoryFilters();
   renderInventoryList();
 });
+document.getElementById("inv-search").addEventListener("input", renderInventoryList);
+
+document.getElementById("inv-delete-brand-btn").addEventListener("click", async () => {
+  const dt = document.getElementById("inv-deviceType").value;
+  const br = document.getElementById("inv-brand").value;
+  if (!br) {
+    showToast("Pick a brand in the filters first.", "fail");
+    return;
+  }
+  if (!confirm(`Delete every box for "${br}"? This removes all its models.`)) return;
+  try {
+    const q = dt
+      ? query(collection(db, "boxes"), where("deviceType", "==", dt), where("brand", "==", br))
+      : query(collection(db, "boxes"), where("brand", "==", br));
+    const snap = await getDocs(q);
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    showToast("Brand deleted.", "success");
+  } catch (err) {
+    showToast(err.message, "fail");
+  }
+});
 
 // ---------- Existing inventory list ----------
+// Same ticket-card look as the public site (reuses .ticket / .results-grid from
+// style.css) instead of the old plain grouped list, plus a text search across
+// model / code / series / aliases so you don't have to hunt through filters.
 function renderInventoryList() {
   const el = document.getElementById("inventory-list");
+  const countEl = document.getElementById("inv-count");
   const dt = document.getElementById("inv-deviceType").value;
   const br = document.getElementById("inv-brand").value;
   const bx = document.getElementById("inv-box").value;
+  const q = document.getElementById("inv-search").value.trim().toLowerCase();
 
   let models = flatModels();
   if (dt) models = models.filter((m) => m.deviceType === dt);
   if (br) models = models.filter((m) => m.brand === br);
   if (bx) models = models.filter((m) => m.box === bx);
+  if (q) {
+    models = models.filter((m) => {
+      const haystack = [m.model, m.series, m.displayCode, m.brand, m.box, m.deviceType, ...(m.aliases || [])]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }
+
+  countEl.textContent = `${models.length} model${models.length === 1 ? "" : "s"}`;
 
   if (models.length === 0) {
-    el.innerHTML = `<div class="status-line">No models match this filter.</div>`;
+    el.innerHTML = `<div class="empty-state">No models match this filter.</div>`;
     return;
   }
 
-  const groups = {};
-  for (const m of models) {
-    const key = `${m.deviceType} / ${m.brand} / ${m.box}`;
-    groups[key] = groups[key] || [];
-    groups[key].push(m);
-  }
+  el.innerHTML =
+    `<div class="results-grid">` +
+    models
+      .map((m) => {
+        const total = (m.stock || []).reduce((s, x) => s + (Number(x.qty) || 0), 0);
+        const stockRows = (m.stock || [])
+          .map((s) => {
+            const qty = Number(s.qty) || 0;
+            const cls = qty > 0 ? "in-stock" : "out-stock";
+            return `<div class="stock-row">
+              <span class="place">${escapeHtml(s.place)}</span>
+              <span class="qty ${cls}">${qty}</span>
+            </div>`;
+          })
+          .join("");
+        const aliasLine =
+          m.aliases && m.aliases.length
+            ? `<div class="ticket-aliases">aka ${m.aliases.map(escapeHtml).join(", ")}</div>`
+            : "";
 
-  el.innerHTML = Object.entries(groups)
-    .map(([groupKey, ms]) => {
-      const rows = ms
-        .map((m) => {
-          const total = (m.stock || []).reduce((s, x) => s + (Number(x.qty) || 0), 0);
-          return `<div class="model-list-row">
-            <span>${escapeHtml(m.model)} <span style="color: var(--text-muted);">(${escapeHtml(m.displayCode || "no code")}) — ${total} in stock</span></span>
-            <span class="actions">
-              <button type="button" class="btn-secondary edit-model-btn" data-device="${escapeHtml(m.deviceType)}" data-brand="${escapeHtml(m.brand)}" data-box="${escapeHtml(m.box)}" data-model="${escapeHtml(m.model)}">Edit</button>
-              <button type="button" class="btn-danger delete-model-btn" data-device="${escapeHtml(m.deviceType)}" data-brand="${escapeHtml(m.brand)}" data-box="${escapeHtml(m.box)}" data-model="${escapeHtml(m.model)}">Delete</button>
-            </span>
-          </div>`;
-        })
-        .join("");
-      return `<div style="margin-bottom: 16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <strong style="font-size: 13px;">${escapeHtml(groupKey)}</strong>
-          <button type="button" class="btn-danger delete-brand-btn" data-device="${escapeHtml(ms[0].deviceType)}" data-brand="${escapeHtml(ms[0].brand)}">Delete whole brand</button>
-        </div>
-        ${rows}
-      </div>`;
-    })
-    .join("");
+        return `<div class="ticket">
+          <div class="ticket-header">
+            <div>
+              <div class="ticket-brand">${escapeHtml(m.brand)} &middot; ${escapeHtml(m.deviceType)} &middot; ${escapeHtml(m.box)}</div>
+              <div class="ticket-model">${escapeHtml(m.model)}</div>
+              <div class="ticket-series">${escapeHtml(m.series || "")}</div>
+              ${aliasLine}
+            </div>
+            ${m.displayCode ? `<span class="ticket-code">${escapeHtml(m.displayCode)}</span>` : ""}
+          </div>
+          <div class="ticket-total">Total in stock: <span class="num">${total}</span></div>
+          <div class="stock-list">${stockRows || `<div class="status-line" style="margin:0;">No stock recorded yet.</div>`}</div>
+          <div class="ticket-admin-actions">
+            <button type="button" class="btn-secondary edit-model-btn" data-boxid="${escapeHtml(m.boxDocId)}" data-id="${escapeHtml(m.id)}">Edit</button>
+            <button type="button" class="btn-danger delete-model-btn" data-boxid="${escapeHtml(m.boxDocId)}" data-id="${escapeHtml(m.id)}" data-model="${escapeHtml(m.model)}">Delete</button>
+          </div>
+        </div>`;
+      })
+      .join("") +
+    `</div>`;
 }
 
 document.getElementById("inventory-list").addEventListener("click", async (e) => {
-  const t = e.target;
+  const t = e.target.closest("button");
+  if (!t) return;
   try {
     if (t.classList.contains("edit-model-btn")) {
-      const m = flatModels().find(
-        (x) => x.deviceType === t.dataset.device && x.brand === t.dataset.brand && x.box === t.dataset.box && x.model === t.dataset.model
-      );
+      const m = flatModels().find((x) => x.boxDocId === t.dataset.boxid && x.id === t.dataset.id);
       if (m) startEdit(m);
     }
     if (t.classList.contains("delete-model-btn")) {
       if (!confirm(`Delete ${t.dataset.model}?`)) return;
-      const id = boxDocId(t.dataset.device, t.dataset.brand, t.dataset.box);
-      await removeModelFromBox(id, t.dataset.model);
+      await removeModelFromBox(t.dataset.boxid, t.dataset.id);
       showToast("Deleted.", "success");
-    }
-    if (t.classList.contains("delete-brand-btn")) {
-      if (!confirm(`Delete every box for "${t.dataset.brand}"? This removes all its models.`)) return;
-      const q = query(collection(db, "boxes"), where("deviceType", "==", t.dataset.device), where("brand", "==", t.dataset.brand));
-      const snap = await getDocs(q);
-      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
-      showToast("Brand deleted.", "success");
     }
   } catch (err) {
     showToast(err.message, "fail");

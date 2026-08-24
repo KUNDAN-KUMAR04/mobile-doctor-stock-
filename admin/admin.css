@@ -187,3 +187,16 @@
 select.search-input {
   appearance: auto;
 }
+
+.ticket-admin-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.ticket-admin-actions button {
+  flex: 1;
+  text-align: center;
+}

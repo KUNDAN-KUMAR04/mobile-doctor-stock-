@@ -65,6 +65,11 @@
           </div>
         </div>
 
+        <div style="margin-bottom:12px;">
+          <label class="field-label" for="f-aliases">Also known as (aliases)</label>
+          <input id="f-aliases" class="search-input" placeholder="Other names, comma separated — e.g. vivo 1902, y19t" />
+        </div>
+
         <label class="field-label">Stock by place</label>
         <div id="stock-inputs"></div>
 
@@ -79,11 +84,14 @@
     <section class="panel">
       <h2>Inventory</h2>
       <div class="inventory-filters">
+        <input id="inv-search" class="search-input" type="text" style="flex: 1 1 220px;" placeholder="Search inventory (model, code, alias…)" />
         <select id="inv-deviceType" class="filter-select"></select>
         <select id="inv-brand" class="filter-select"></select>
         <select id="inv-box" class="filter-select"></select>
         <button type="button" id="inv-clear-btn" class="btn-secondary">Clear filters</button>
+        <button type="button" id="inv-delete-brand-btn" class="btn-danger">Delete brand</button>
       </div>
+      <div id="inv-count" class="status-line"></div>
       <div id="inventory-list"></div>
     </section>
   </main>
