@@ -77,7 +77,7 @@ async function loadFileModels() {
         models.push({
           deviceType: brandData.deviceType || dt.name,
           brand: brandData.brand || bf.name.replace(".json", ""),
-          box: "",
+          box: m.box || "",
           series: m.series || "",
           model: m.model || "",
           displayCode: m.displayCode || "",

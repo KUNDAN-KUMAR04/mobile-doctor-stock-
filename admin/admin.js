@@ -11,6 +11,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+const OTHER_VALUE = "__other__";
+
 let currentUser = null;
 let boxDocs = [];   // raw box documents, each with its firestore doc id attached as _id
 let places = [];
@@ -23,6 +25,12 @@ function slug(s) {
 }
 function boxDocId(deviceType, brand, box) {
   return `${slug(deviceType)}__${slug(brand)}__${slug(box)}`;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function naturalSort(arr) {
+  return [...arr].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
 }
 
 // ---------- Auth guard ----------
@@ -66,7 +74,8 @@ function flatModels() {
 
 function renderAll() {
   renderPlacesEditor();
-  renderDatalists();
+  refreshFormSmartFields();
+  refreshInventoryFilters();
   renderStockInputs();
   renderInventoryList();
 }
@@ -77,7 +86,7 @@ function renderPlacesEditor() {
   el.innerHTML = places
     .map(
       (p, i) => `<div class="place-row">
-        <input class="search-input place-input" data-index="${i}" value="${p}" />
+        <input class="search-input place-input" data-index="${i}" value="${escapeHtml(p)}" />
         <button type="button" class="btn-danger remove-place-btn" data-index="${i}">Remove</button>
       </div>`
     )
@@ -114,16 +123,107 @@ document.getElementById("save-places-btn").addEventListener("click", async () =>
   }
 });
 
-// ---------- Datalists (device type / brand / box suggestions) ----------
-function renderDatalists() {
-  const models = flatModels();
-  const deviceTypes = [...new Set(models.map((m) => m.deviceType))];
-  const brands = [...new Set(models.map((m) => m.brand))];
-  const boxes = [...new Set(models.map((m) => m.box))];
-  document.getElementById("deviceTypeList").innerHTML = deviceTypes.map((d) => `<option value="${d}">`).join("");
-  document.getElementById("brandList").innerHTML = brands.map((b) => `<option value="${b}">`).join("");
-  document.getElementById("boxList").innerHTML = boxes.map((b) => `<option value="${b}">`).join("");
+// ---------- Lookup helpers (drive both the smart form fields and the inventory filters) ----------
+function getDeviceTypes() {
+  return naturalSort([...new Set(boxDocs.map((b) => b.deviceType).filter(Boolean))]);
 }
+function getBrands(deviceType) {
+  return naturalSort([
+    ...new Set(boxDocs.filter((b) => !deviceType || b.deviceType === deviceType).map((b) => b.brand).filter(Boolean)),
+  ]);
+}
+function getBoxes(deviceType, brand) {
+  return naturalSort([
+    ...new Set(
+      boxDocs
+        .filter((b) => (!deviceType || b.deviceType === deviceType) && (!brand || b.brand === brand))
+        .map((b) => b.box)
+        .filter(Boolean)
+    ),
+  ]);
+}
+function getSeriesList(brand) {
+  return naturalSort([
+    ...new Set(flatModels().filter((m) => !brand || m.brand === brand).map((m) => m.series).filter(Boolean)),
+  ]);
+}
+
+// ---------- Smart "select from existing, or add new" fields ----------
+// Each smart field is a <select id="{id}"> paired with a hidden <input id="{id}-other">
+// that appears when "+ Add new…" is chosen.
+function populateSmartSelect(selectId, otherId, options, currentValue) {
+  const sel = document.getElementById(selectId);
+  const other = document.getElementById(otherId);
+  const isCustom = currentValue && !options.includes(currentValue);
+
+  sel.innerHTML =
+    `<option value="">Select…</option>` +
+    options.map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("") +
+    `<option value="${OTHER_VALUE}">+ Add new…</option>`;
+
+  if (isCustom) {
+    sel.value = OTHER_VALUE;
+    other.style.display = "block";
+    other.value = currentValue;
+  } else {
+    sel.value = currentValue || "";
+    other.style.display = "none";
+    if (sel.value !== OTHER_VALUE) other.value = "";
+  }
+}
+function smartValue(selectId, otherId) {
+  const sel = document.getElementById(selectId);
+  if (sel.value === OTHER_VALUE) return document.getElementById(otherId).value.trim();
+  return sel.value;
+}
+function wireSmartToggle(selectId, otherId) {
+  const sel = document.getElementById(selectId);
+  const other = document.getElementById(otherId);
+  sel.addEventListener("change", () => {
+    other.style.display = sel.value === OTHER_VALUE ? "block" : "none";
+    if (sel.value === OTHER_VALUE) other.focus();
+  });
+}
+
+function refreshFormSmartFields() {
+  const curDT = smartValue("f-deviceType", "f-deviceType-other");
+  const curBrand = smartValue("f-brand", "f-brand-other");
+  const curBox = smartValue("f-box", "f-box-other");
+  populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), curDT);
+  populateSmartSelect("f-brand", "f-brand-other", getBrands(curDT), curBrand);
+  populateSmartSelect("f-box", "f-box-other", getBoxes(curDT, curBrand), curBox);
+  refreshSeriesSuggestions();
+}
+function refreshSeriesSuggestions() {
+  const brand = smartValue("f-brand", "f-brand-other");
+  document.getElementById("seriesList").innerHTML = getSeriesList(brand)
+    .map((s) => `<option value="${escapeHtml(s)}">`)
+    .join("");
+}
+
+// Cascading: device type change resets brand + box; brand change resets box.
+function cascadeFromDeviceType() {
+  const dt = smartValue("f-deviceType", "f-deviceType-other");
+  populateSmartSelect("f-brand", "f-brand-other", getBrands(dt), "");
+  populateSmartSelect("f-box", "f-box-other", getBoxes(dt, ""), "");
+  refreshSeriesSuggestions();
+}
+function cascadeFromBrand() {
+  const dt = smartValue("f-deviceType", "f-deviceType-other");
+  const br = smartValue("f-brand", "f-brand-other");
+  populateSmartSelect("f-box", "f-box-other", getBoxes(dt, br), "");
+  refreshSeriesSuggestions();
+}
+
+["f-deviceType", "f-deviceType-other"].forEach((id) =>
+  document.getElementById(id).addEventListener(id.endsWith("-other") ? "input" : "change", cascadeFromDeviceType)
+);
+["f-brand", "f-brand-other"].forEach((id) =>
+  document.getElementById(id).addEventListener(id.endsWith("-other") ? "input" : "change", cascadeFromBrand)
+);
+wireSmartToggle("f-deviceType", "f-deviceType-other");
+wireSmartToggle("f-brand", "f-brand-other");
+wireSmartToggle("f-box", "f-box-other");
 
 // ---------- Model form ----------
 function renderStockInputs(prefill = {}) {
@@ -132,8 +232,8 @@ function renderStockInputs(prefill = {}) {
     .map((p) => {
       const entry = prefill[p] || { qty: 0 };
       return `<div class="stock-input-row">
-        <span class="place-name">${p}</span>
-        <input type="number" class="search-input stock-qty-input" data-place="${p}" value="${entry.qty}" min="0" />
+        <span class="place-name">${escapeHtml(p)}</span>
+        <input type="number" class="search-input stock-qty-input" data-place="${escapeHtml(p)}" value="${entry.qty}" min="0" />
       </div>`;
     })
     .join("");
@@ -141,14 +241,17 @@ function renderStockInputs(prefill = {}) {
 
 document.getElementById("model-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const deviceType = document.getElementById("f-deviceType").value.trim();
-  const brand = document.getElementById("f-brand").value.trim();
-  const box = document.getElementById("f-box").value.trim();
+  const deviceType = smartValue("f-deviceType", "f-deviceType-other");
+  const brand = smartValue("f-brand", "f-brand-other");
+  const box = smartValue("f-box", "f-box-other");
   const series = document.getElementById("f-series").value.trim();
   const modelName = document.getElementById("f-model").value.trim();
   const displayCode = document.getElementById("f-code").value.trim();
 
-  if (!deviceType || !brand || !box || !modelName) return;
+  if (!deviceType || !brand || !box || !modelName) {
+    showToast("Device type, brand, box and model name are required.", "fail");
+    return;
+  }
 
   const stock = [...document.querySelectorAll(".stock-qty-input")].map((inp) => ({
     place: inp.dataset.place,
@@ -205,6 +308,10 @@ document.getElementById("cancel-edit-btn").addEventListener("click", resetForm);
 function resetForm() {
   editing = null;
   document.getElementById("model-form").reset();
+  populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), "");
+  populateSmartSelect("f-brand", "f-brand-other", getBrands(""), "");
+  populateSmartSelect("f-box", "f-box-other", getBoxes("", ""), "");
+  refreshSeriesSuggestions();
   document.getElementById("form-title").textContent = "Add / edit model";
   document.getElementById("cancel-edit-btn").style.display = "none";
   renderStockInputs();
@@ -212,9 +319,10 @@ function resetForm() {
 
 function startEdit(m) {
   editing = { deviceType: m.deviceType, brand: m.brand, box: m.box, model: m.model };
-  document.getElementById("f-deviceType").value = m.deviceType;
-  document.getElementById("f-brand").value = m.brand;
-  document.getElementById("f-box").value = m.box;
+  populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), m.deviceType);
+  populateSmartSelect("f-brand", "f-brand-other", getBrands(m.deviceType), m.brand);
+  populateSmartSelect("f-box", "f-box-other", getBoxes(m.deviceType, m.brand), m.box);
+  refreshSeriesSuggestions();
   document.getElementById("f-series").value = m.series;
   document.getElementById("f-model").value = m.model;
   document.getElementById("f-code").value = m.displayCode;
@@ -226,18 +334,64 @@ function startEdit(m) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// ---------- Inventory: cascading Device type → Brand → Box filters ----------
+function populatePlainSelect(selectId, allLabel, options, currentValue) {
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = `<option value="">${allLabel}</option>` + options.map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
+  sel.value = options.includes(currentValue) ? currentValue : "";
+}
+
+function refreshInventoryFilters() {
+  const dt = document.getElementById("inv-deviceType").value;
+  const br = document.getElementById("inv-brand").value;
+  const bx = document.getElementById("inv-box").value;
+  populatePlainSelect("inv-deviceType", "All device types", getDeviceTypes(), dt);
+  const dtNow = document.getElementById("inv-deviceType").value;
+  populatePlainSelect("inv-brand", "All brands", getBrands(dtNow), br);
+  const brNow = document.getElementById("inv-brand").value;
+  populatePlainSelect("inv-box", "All boxes", getBoxes(dtNow, brNow), bx);
+}
+
+document.getElementById("inv-deviceType").addEventListener("change", () => {
+  document.getElementById("inv-brand").value = "";
+  document.getElementById("inv-box").value = "";
+  refreshInventoryFilters();
+  renderInventoryList();
+});
+document.getElementById("inv-brand").addEventListener("change", () => {
+  document.getElementById("inv-box").value = "";
+  refreshInventoryFilters();
+  renderInventoryList();
+});
+document.getElementById("inv-box").addEventListener("change", renderInventoryList);
+document.getElementById("inv-clear-btn").addEventListener("click", () => {
+  document.getElementById("inv-deviceType").value = "";
+  document.getElementById("inv-brand").value = "";
+  document.getElementById("inv-box").value = "";
+  refreshInventoryFilters();
+  renderInventoryList();
+});
+
 // ---------- Existing inventory list ----------
 function renderInventoryList() {
   const el = document.getElementById("inventory-list");
-  const models = flatModels();
+  const dt = document.getElementById("inv-deviceType").value;
+  const br = document.getElementById("inv-brand").value;
+  const bx = document.getElementById("inv-box").value;
+
+  let models = flatModels();
+  if (dt) models = models.filter((m) => m.deviceType === dt);
+  if (br) models = models.filter((m) => m.brand === br);
+  if (bx) models = models.filter((m) => m.box === bx);
+
   if (models.length === 0) {
-    el.innerHTML = `<div class="status-line">No models yet — add one above.</div>`;
+    el.innerHTML = `<div class="status-line">No models match this filter.</div>`;
     return;
   }
 
   const groups = {};
   for (const m of models) {
-    const key = `${m.deviceType} / ${m.brand}`;
+    const key = `${m.deviceType} / ${m.brand} / ${m.box}`;
     groups[key] = groups[key] || [];
     groups[key].push(m);
   }
@@ -248,18 +402,18 @@ function renderInventoryList() {
         .map((m) => {
           const total = (m.stock || []).reduce((s, x) => s + (Number(x.qty) || 0), 0);
           return `<div class="model-list-row">
-            <span>${m.model} <span style="color: var(--text-muted);">(${m.displayCode || "no code"}) — ${total} in stock · box: ${m.box}</span></span>
+            <span>${escapeHtml(m.model)} <span style="color: var(--text-muted);">(${escapeHtml(m.displayCode || "no code")}) — ${total} in stock</span></span>
             <span class="actions">
-              <button type="button" class="btn-secondary edit-model-btn" data-device="${m.deviceType}" data-brand="${m.brand}" data-box="${m.box}" data-model="${m.model}">Edit</button>
-              <button type="button" class="btn-danger delete-model-btn" data-device="${m.deviceType}" data-brand="${m.brand}" data-box="${m.box}" data-model="${m.model}">Delete</button>
+              <button type="button" class="btn-secondary edit-model-btn" data-device="${escapeHtml(m.deviceType)}" data-brand="${escapeHtml(m.brand)}" data-box="${escapeHtml(m.box)}" data-model="${escapeHtml(m.model)}">Edit</button>
+              <button type="button" class="btn-danger delete-model-btn" data-device="${escapeHtml(m.deviceType)}" data-brand="${escapeHtml(m.brand)}" data-box="${escapeHtml(m.box)}" data-model="${escapeHtml(m.model)}">Delete</button>
             </span>
           </div>`;
         })
         .join("");
       return `<div style="margin-bottom: 16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <strong style="font-size: 13px;">${groupKey}</strong>
-          <button type="button" class="btn-danger delete-brand-btn" data-device="${ms[0].deviceType}" data-brand="${ms[0].brand}">Delete whole brand</button>
+          <strong style="font-size: 13px;">${escapeHtml(groupKey)}</strong>
+          <button type="button" class="btn-danger delete-brand-btn" data-device="${escapeHtml(ms[0].deviceType)}" data-brand="${escapeHtml(ms[0].brand)}">Delete whole brand</button>
         </div>
         ${rows}
       </div>`;

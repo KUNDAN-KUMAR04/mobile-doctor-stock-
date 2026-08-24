@@ -37,18 +37,18 @@
         <div class="form-grid">
           <div>
             <label class="field-label" for="f-deviceType">Device type</label>
-            <input id="f-deviceType" class="search-input" list="deviceTypeList" placeholder="Android / iOS" required />
-            <datalist id="deviceTypeList"></datalist>
+            <select id="f-deviceType" class="search-input"></select>
+            <input id="f-deviceType-other" class="search-input" style="display:none; margin-top:6px;" placeholder="New device type, e.g. Android" />
           </div>
           <div>
             <label class="field-label" for="f-brand">Brand</label>
-            <input id="f-brand" class="search-input" list="brandList" placeholder="e.g. Vivo" required />
-            <datalist id="brandList"></datalist>
+            <select id="f-brand" class="search-input"></select>
+            <input id="f-brand-other" class="search-input" style="display:none; margin-top:6px;" placeholder="New brand, e.g. Vivo" />
           </div>
           <div>
             <label class="field-label" for="f-box">Box</label>
-            <input id="f-box" class="search-input" list="boxList" placeholder="e.g. Vivo 1" required />
-            <datalist id="boxList"></datalist>
+            <select id="f-box" class="search-input"></select>
+            <input id="f-box-other" class="search-input" style="display:none; margin-top:6px;" placeholder="New box, e.g. Vivo 1" />
           </div>
           <div>
             <label class="field-label" for="f-code">Model number (displayCode)</label>
@@ -56,7 +56,8 @@
           </div>
           <div>
             <label class="field-label" for="f-series">Series</label>
-            <input id="f-series" class="search-input" placeholder="e.g. Y-series" />
+            <input id="f-series" class="search-input" list="seriesList" placeholder="e.g. Y-series" />
+            <datalist id="seriesList"></datalist>
           </div>
           <div>
             <label class="field-label" for="f-model">Model name</label>
@@ -77,6 +78,12 @@
     <!-- Existing inventory -->
     <section class="panel">
       <h2>Inventory</h2>
+      <div class="inventory-filters">
+        <select id="inv-deviceType" class="filter-select"></select>
+        <select id="inv-brand" class="filter-select"></select>
+        <select id="inv-box" class="filter-select"></select>
+        <button type="button" id="inv-clear-btn" class="btn-secondary">Clear filters</button>
+      </div>
       <div id="inventory-list"></div>
     </section>
   </main>

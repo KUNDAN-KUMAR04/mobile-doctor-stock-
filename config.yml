@@ -33,6 +33,7 @@ collections:
         widget: "list"
         summary: "{{fields.model}} ({{fields.displayCode}})"
         fields:
+          - { label: "Box", name: "box", widget: "string", required: false }
           - { label: "Series", name: "series", widget: "string", required: false }
           - { label: "Model", name: "model", widget: "string" }
           - { label: "Display Code", name: "displayCode", widget: "string", required: false }
@@ -58,6 +59,7 @@ collections:
         widget: "list"
         summary: "{{fields.model}} ({{fields.displayCode}})"
         fields:
+          - { label: "Box", name: "box", widget: "string", required: false }
           - { label: "Series", name: "series", widget: "string", required: false }
           - { label: "Model", name: "model", widget: "string" }
           - { label: "Display Code", name: "displayCode", widget: "string", required: false }
