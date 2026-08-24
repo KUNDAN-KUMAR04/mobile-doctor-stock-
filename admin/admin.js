@@ -153,11 +153,23 @@ function flatModels() {
   return out;
 }
 
+// Reads whatever is CURRENTLY sitting in the stock qty inputs on screen right
+// now, keyed by place. Used so a re-render (triggered by any unrelated
+// Firestore change elsewhere) can restore what the person was mid-typing
+// instead of silently resetting it back to the last-saved value.
+function currentStockInputValues() {
+  const vals = {};
+  document.querySelectorAll(".stock-qty-input").forEach((inp) => {
+    vals[inp.dataset.place] = { qty: Number(inp.value) || 0 };
+  });
+  return vals;
+}
+
 function renderAll() {
   renderPlacesEditor();
   refreshFormSmartFields();
   refreshInventoryFilters();
-  renderStockInputs();
+  renderStockInputs(currentStockInputValues());
   renderInventoryList();
 }
 
@@ -351,10 +363,28 @@ document.getElementById("model-form").addEventListener("submit", async (e) => {
     return;
   }
 
+  // With no places defined there are literally no qty inputs on the page —
+  // saving here would silently write stock: [] and, on an edit, WIPE the
+  // model's real stock. Block it instead and point back at the Places panel.
+  if (places.length === 0) {
+    showToast("Add at least one place in the Places panel above before saving stock.", "fail");
+    return;
+  }
+
   const stock = [...document.querySelectorAll(".stock-qty-input")].map((inp) => ({
     place: inp.dataset.place,
     qty: Number(inp.value) || 0,
   }));
+
+  // Safety net: if this model previously had stock under a place that isn't
+  // in the current Places list anymore (renamed/removed mid-edit), keep that
+  // entry instead of silently dropping it on save.
+  if (editing && editing.originalStock) {
+    const coveredPlaces = new Set(stock.map((s) => s.place));
+    for (const s of editing.originalStock) {
+      if (!coveredPlaces.has(s.place)) stock.push(s);
+    }
+  }
 
   // Keyed by id, not name — this is what allows any number of items (even
   // ones sharing a name) to live in the same box without overwriting each
@@ -435,7 +465,10 @@ function resetForm() {
 }
 
 function startEdit(m) {
-  editing = { deviceType: m.deviceType, brand: m.brand, box: m.box, id: m.id };
+  // originalStock is kept as a safety net: if a place this model had stock
+  // under isn't in the current Places list (renamed/removed after this model
+  // was last saved), we still don't want a save to silently wipe that entry.
+  editing = { deviceType: m.deviceType, brand: m.brand, box: m.box, id: m.id, originalStock: m.stock || [] };
   populateSmartSelect("f-deviceType", "f-deviceType-other", getDeviceTypes(), m.deviceType);
   populateSmartSelect("f-brand", "f-brand-other", getBrands(m.deviceType), m.brand);
   populateSmartSelect("f-box", "f-box-other", getBoxes(m.deviceType, m.brand), m.box);
