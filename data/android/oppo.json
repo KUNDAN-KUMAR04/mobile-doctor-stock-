@@ -1,25 +1,305 @@
 {
-  "brand": "Oppo",
   "deviceType": "Android",
-  "models": [
+  "brand": "Oppo / Realme",
+  "location": "Home",
+  "boxes": [
     {
-      "series": "A-series",
-      "model": "A5",
-      "displayCode": "2201",
-      "stock": [
-        { "place": "Home", "qty": 2 },
-        { "place": "Shop A", "qty": 0 },
-        { "place": "Shop B", "qty": 1 }
+      "boxTag": "Tag 1",
+      "items": [
+        {
+          "modelGroup": "NT6 pro",
+          "qty": 1
+        },
+        {
+          "modelGroup": "Mnote 10 pro / M11i / Mnote 11 pro 5G / Mnote 11 pro+ 5G / Mnote 14 5G / Poco X4 pro 5G",
+          "qty": 3
+        },
+        {
+          "modelGroup": "Mnote 11 / Mnote 11S / Poco M4 pro",
+          "qty": 3
+        },
+        {
+          "modelGroup": "Rm 9 pro / Rm 9 pro+",
+          "qty": 1
+        },
+        {
+          "modelGroup": "Rm narzo 50A prime / Rm C35",
+          "qty": 1
+        }
       ]
     },
     {
-      "series": "A-series",
-      "model": "A9",
-      "displayCode": "2005",
-      "stock": [
-        { "place": "Home", "qty": 0 },
-        { "place": "Shop A", "qty": 3 },
-        { "place": "Shop B", "qty": 3 }
+      "boxTag": "Tag 2",
+      "items": [
+        {
+          "modelGroup": "1+ nord 2 5G / 1+ nord 2T 5G / Reno 6 5G",
+          "qty": 1
+        },
+        {
+          "modelGroup": "C65 / A3 pro / A3x / A50 / Rm 14x / A5x / A80 / A40x",
+          "qty": 1
+        },
+        {
+          "modelGroup": "Rm 12 5G / A60 / C55 / QN55 / RM 12 5G / 12x 5G / C67 4G / A60 / A80 / C65 / N65",
+          "qty": 1
+        },
+        {
+          "modelGroup": "C35 / A18 / A38 / A59 5G / A57",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A57S / A58 5G / A58x 5G",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A78 5G / A57e / A17 / A17k / A77 / A77s / K10 5G",
+          "qty": 2
+        },
+        {
+          "modelGroup": "A57 new / A17 / A77 / A77s",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A17k / A78 5G / K10 5G / A18 / A38 / A59 5G",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A17 original",
+          "qty": 1
+        },
+        {
+          "modelGroup": "narzo 30 5G / RM 8 5G / Rm 9 5G / RM 8 5G / A93s / RM V13 5G / K9x",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 3",
+      "items": [
+        {
+          "modelGroup": "Rm C20 / Rm C21 / RM narzo 50i",
+          "qty": 1
+        },
+        {
+          "modelGroup": "C11 2021 Black",
+          "qty": 3
+        },
+        {
+          "modelGroup": "Reno 5 4G/5G / RM GT / Reno 6 4G/5G / RM GT Neo / Reno 7 4G/5G / Q3 pro / X7 max / 1+ nord 2 / 1+ CE / Find X3 lite",
+          "qty": 2
+        },
+        {
+          "modelGroup": "RM 6 / Rm 6i / Rm narzo 20 pro / Rm 7",
+          "qty": 1
+        },
+        {
+          "modelGroup": "Narzo 20 pro / Narzo 30 4G / RM 6 / RM 7",
+          "qty": 2
+        },
+        {
+          "modelGroup": "Rm 6i / Narzo 30 (4G/5G) / Narzo 20 pro / RM 6 / RM 6S / Rm 7",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 4",
+      "items": [
+        {
+          "modelGroup": "HM A1 / A1+ / A2 / A2+ / A2+ (India) / HM A1 / A1 (India) / Poco C50 / Poco C51 (India)",
+          "qty": 2
+        },
+        {
+          "modelGroup": "A53 / A54 / A3S",
+          "qty": 5
+        },
+        {
+          "modelGroup": "A53 / A54",
+          "qty": 3
+        },
+        {
+          "modelGroup": "K3 / CPH1955 / Rmx / Rmx1901",
+          "qty": 1
+        },
+        {
+          "modelGroup": "Reno 2Z / CPH1945 TFT",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 5",
+      "items": [
+        {
+          "modelGroup": "Reno 4 5G / Reno 5 / 5 lite / 6 / 6 lite / Rm 7 pro / 8 / 8 pro / X7 / V15 / F19 / F19 pro / F19s / F19 pro+ / F21 pro 5G / A94 4G / A94 5G / A95 4G / A95 5G",
+          "qty": 5
+        },
+        {
+          "modelGroup": "Rm 5 / 5i / 5s / C3 / 6i / Narzo 10A / 20A",
+          "qty": 3
+        },
+        {
+          "modelGroup": "C51 / C53 / N53",
+          "qty": 5
+        },
+        {
+          "modelGroup": "A3S",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 6",
+      "items": [
+        {
+          "modelGroup": "A60 / C65 / RM 12 5G",
+          "qty": 4
+        },
+        {
+          "modelGroup": "Narzo 70 5G / RM 12+ 5G / Rm P1 5G / Narzo 70 pro 5G",
+          "qty": 1
+        },
+        {
+          "modelGroup": "RM note 7",
+          "qty": 1
+        },
+        {
+          "modelGroup": "C71 / A5 new",
+          "qty": 2
+        },
+        {
+          "modelGroup": "25 MC",
+          "qty": 2
+        },
+        {
+          "modelGroup": "Rm C11 / A16",
+          "qty": 3
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 7",
+      "items": [
+        {
+          "modelGroup": "C11",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A5S",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A53 / A54",
+          "qty": 3
+        },
+        {
+          "modelGroup": "C21Y / C25Y",
+          "qty": 2
+        },
+        {
+          "modelGroup": "Rm 8i / 9i / Narzo 50 / A96 4G / 1+ Nord CE 2 lite 5G / Rm 9 pro 5G / Rm 9 5G SE / K10 4G / A36 / A76",
+          "qty": 3
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 8",
+      "items": [
+        {
+          "modelGroup": "C31",
+          "qty": 1
+        },
+        {
+          "modelGroup": "C33",
+          "qty": 2
+        },
+        {
+          "modelGroup": "C55 / N55",
+          "qty": 5
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 9",
+      "items": [
+        {
+          "modelGroup": "11X / C3 / OK / NZ10 / NZ 20A",
+          "qty": 8
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 10",
+      "items": [
+        {
+          "modelGroup": "C11",
+          "qty": 6
+        },
+        {
+          "modelGroup": "Poco F1",
+          "qty": 1
+        },
+        {
+          "modelGroup": "RM A54 / A55",
+          "qty": 1
+        },
+        {
+          "modelGroup": "RM 7",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A3S",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A18 / A57",
+          "qty": 1
+        },
+        {
+          "modelGroup": "C55 OG",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "boxTag": "Tag 11",
+      "items": [
+        {
+          "modelGroup": "6i",
+          "qty": 1
+        },
+        {
+          "modelGroup": "F9 / F9 pro",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A76 / A36 Oppo",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A78 / F21 pro / F21s pro / Find X3 lite / Reno 7 4G/5G / 8 4G/5G / 8T / Rm 9 / 9 pro+ / 10 / 11 4G / Narzo 50 pro / 60 / 1+ nord CE2",
+          "qty": 1
+        },
+        {
+          "modelGroup": "9A / 9C / 9I / POCO C3 / C31 / 10A",
+          "qty": 1
+        },
+        {
+          "modelGroup": "RENO 4 / 5F / 5Z / 5 lite / 6Z / 6 lite / 7Z / 8 lite",
+          "qty": 1
+        },
+        {
+          "modelGroup": "RM 7 pro / 8 pro / X7 / V15",
+          "qty": 1
+        },
+        {
+          "modelGroup": "Reno 5 / 5Z / 5 lite / 6 / 6 lite / 7 / 8 lite / Rm 7 pro / 8 / 8 pro / X7 / V15 / F19 / F19s / F19 pro / F19 pro+ / F21 pro",
+          "qty": 1
+        },
+        {
+          "modelGroup": "A13 5G / M13 5G / F12 / A32 5G / M32 5G / M12 / M127F / M127G / A02 / M02 / A125 / A127",
+          "qty": 1
+        }
       ]
     }
   ]
